@@ -1,0 +1,2 @@
+github:stlehmann/micropython-ssd1306
+github:miketeachman/micropython-rotary
