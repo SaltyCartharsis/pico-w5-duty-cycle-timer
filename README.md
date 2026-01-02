@@ -5,9 +5,9 @@ MicroPython project for Elecrow Pico W5 (RP2350) that controls a 120V AC relay w
 ## Attribution & Thanks
 This project relies on excellent open-source work:
 
-# SSD1306 driver by Stefan Lehmann –
+### SSD1306 driver by Stefan Lehmann –
  https://github.com/stlehmann/micropython-ssd1306
-# Rotary encoder library by Mike Teachman – 
+### Rotary encoder library by Mike Teachman – 
 https://github.com/miketeachman/micropython-rotary
 
 Both are licensed under the MIT License. Thank you to the authors for making these high-quality drivers freely available!
