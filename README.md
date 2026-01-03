@@ -26,8 +26,7 @@ Features:
 - OLED shows current menu, times, duty cycle, status  
 - Green LED breathes slowly during active timing (cycle or prime)  
 - Green LED solid when idle in menu/settings  
-- Red LED solid when relay is ON (load powered)  
-- No simulation LED – test with low-voltage load first
+- Red LED solid when relay is ON (load powered)
 
 ![Close-up of Elecrow Pico W5](images/pico-w5.jpg)  
 
