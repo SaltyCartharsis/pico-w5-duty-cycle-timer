@@ -1,33 +1,31 @@
-# Adjustable Duty Cycle Timer - Single Encoder - Elecrow Pico W5
-# Short press (< 3s) = select/enter/save
-# Long press (> 3s) = back/stop
+# Adjustable Duty Cycle Timer - Elecrow Pico W5 (RP2350)
+# Short press (< 3s): select/enter/save
+# Long press (> 3s): back/stop
 # Button on GP15
 
 import utime as time
-from machine import Pin, I2C
+import math
+from machine import Pin, I2C, PWM
 from ssd1306 import SSD1306_I2C
 from rotary_irq_rp2 import RotaryIRQ
 
 # ────────────────────────────────────────────────
-# CONFIGURATION
+# CONFIG
 # ────────────────────────────────────────────────
-TEST_MODE = True          # Change to False AFTER testing with simulation LED
-
 RELAY_PIN       = 6
 ENC_CLK         = 2
 ENC_DT          = 3
-ENC_SW          = 15      # Single encoder button
+ENC_SW          = 15
 GREEN_LED_PIN   = 10
 RED_LED_PIN     = 12
-TEST_LED_PIN    = 11
-LONG_PRESS_MS   = 3000    # 3 seconds threshold for long press
+LONG_PRESS_MS   = 3000
 
-PRIME_STEP      = 15      # seconds per rotation step in prime mode
+PRIME_STEP      = 15
 PRIME_MIN       = 15
-PRIME_MAX       = 600     # max 10 minutes – adjust if needed
+PRIME_MAX       = 600
 
 # ────────────────────────────────────────────────
-# INITIALIZATION
+# INIT
 # ────────────────────────────────────────────────
 i2c = I2C(0, scl=Pin(1), sda=Pin(0))
 oled = SSD1306_I2C(128, 64, i2c)
@@ -38,32 +36,28 @@ oled.show()
 enc = RotaryIRQ(ENC_CLK, ENC_DT, pull_up=True)
 enc_sw = Pin(ENC_SW, Pin.IN, Pin.PULL_UP)
 
-green_led = Pin(GREEN_LED_PIN, Pin.OUT, value=0)
-red_led   = Pin(RED_LED_PIN,   Pin.OUT, value=0)
+green_pwm = PWM(Pin(GREEN_LED_PIN))
+green_pwm.freq(1000)  # for breathing
 
-if TEST_MODE:
-    output_pin = Pin(TEST_LED_PIN, Pin.OUT, value=0)  # active high
-    output_on  = 1
-    output_off = 0
-    print("TEST MODE active - GP11 LED simulates relay")
-else:
-    output_pin = Pin(RELAY_PIN, Pin.OUT, value=1)     # active low
-    output_on  = 0
-    output_off = 1
+red_led = Pin(RED_LED_PIN, Pin.OUT, value=0)
+
+output_pin = Pin(RELAY_PIN, Pin.OUT, value=1)  # active low
+output_on  = 0
+output_off = 1
 
 # ────────────────────────────────────────────────
-# VARIABLES
+# STATE
 # ────────────────────────────────────────────────
 on_time     = 10
 off_time    = 10
-prime_time  = 30          # starting value in prime mode (seconds)
+prime_time  = 30
 
 state       = 'main'
 menu_index  = 0
 is_on       = False
 last_toggle = 0
 running     = False
-priming     = False       # new: one-shot prime mode
+priming     = False
 prime_start = 0
 
 last_display_lines = []
@@ -72,12 +66,25 @@ last_enc_val = enc.value()
 press_start_time = 0
 button_was_pressed = False
 
+breath_phase = 0
+
 # ────────────────────────────────────────────────
 # HELPERS
 # ────────────────────────────────────────────────
-def update_status_leds(on_state):
-    green_led.value(1 if on_state else 0)
-    red_led.value(0   if on_state else 1)
+def update_status_leds(relay_on):
+    """Red LED shows relay ON state directly"""
+    red_led.value(1 if relay_on else 0)
+
+def update_green_led(active):
+    """Green LED breathes when loop/cycle active, solid otherwise"""
+    if not active:
+        green_pwm.duty_u16(0)  # off when not active
+        return
+
+    global breath_phase
+    breath_phase = (breath_phase + 1) % 256
+    duty = int((1 + math.sin(breath_phase * 2 * math.pi / 256)) * 32767)
+    green_pwm.duty_u16(duty)
 
 def update_display(lines):
     global last_display_lines
@@ -101,12 +108,16 @@ while True:
     now = time.time()
     now_ms = time.ticks_ms()
 
+    # Breathing green LED when in cycle or prime mode
+    active_cycle = running or priming
+    update_green_led(active_cycle)
+
     # Rotation handling
     current_val = enc.value()
     if current_val != last_enc_val:
         delta = current_val - last_enc_val
         if state == 'main':
-            menu_index = (menu_index + delta) % 5       # now 5 items
+            menu_index = (menu_index + delta) % 5
         elif state == 'set_on':
             on_time = max(1, on_time + delta)
         elif state == 'set_off':
@@ -116,8 +127,8 @@ while True:
         last_enc_val = current_val
         time.sleep_ms(60)
 
-    # Button handling (short/long press)
-    if enc_sw.value() == 0:         # pressed
+    # Button handling
+    if enc_sw.value() == 0:
         if not button_was_pressed:
             press_start_time = now_ms
             button_was_pressed = True
@@ -125,7 +136,7 @@ while True:
         if button_was_pressed:
             duration = time.ticks_diff(now_ms, press_start_time)
             if duration >= LONG_PRESS_MS:
-                # Long press = back / cancel
+                # Long press = back/cancel
                 if state in ('set_on', 'set_off', 'set_prime'):
                     state = 'main'
                 elif state == 'running' or priming:
@@ -134,7 +145,7 @@ while True:
                     priming = False
                     state = 'main'
             elif duration >= 50:
-                # Short press = select / start
+                # Short press = select/start
                 if state == 'main':
                     if menu_index == 0: state = 'set_on'
                     elif menu_index == 1: state = 'set_off'
@@ -145,23 +156,22 @@ while True:
                         output_pin.value(output_on)
                         update_status_leds(True)
                         last_toggle = now
-                    elif menu_index == 3:               # new: Prime
+                    elif menu_index == 3:
                         state = 'set_prime'
                     elif menu_index == 4:
                         update_display(["Exiting..."])
                         while True: time.sleep(1)
-                elif state == 'set_on' or state == 'set_off':
+                elif state in ('set_on', 'set_off'):
                     state = 'main'
                 elif state == 'set_prime':
-                    # Start prime cycle
                     priming = True
                     prime_start = now
                     output_pin.value(output_on)
                     update_status_leds(True)
-                    state = 'main'  # return to main while priming
+                    state = 'main'
             button_was_pressed = False
 
-    # Normal repeating cycle
+    # Repeating cycle
     if running:
         if is_on and now - last_toggle >= on_time:
             output_pin.value(output_off)
@@ -184,7 +194,7 @@ while True:
             "Long>3s stop"
         ])
 
-    # One-shot Prime mode
+    # Prime mode
     elif priming:
         if now - prime_start >= prime_time:
             force_off()

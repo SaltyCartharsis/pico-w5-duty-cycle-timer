@@ -9,12 +9,27 @@ Control via single rotary encoder:
 
 Features:
 - Adjustable on/off times (seconds)
-- Duty cycle % display
+- Duty cycle % display on OLED
 - Repeating cycle mode
 - "Prime" mode: one-shot ON for adjustable duration (15 s steps)
-- OLED status display (128×64 SSD1306 I²C)
-- LEDs: Green = ON state, Red = OFF state (during cycle)
-- Test mode: simulation LED on GP11 (safe testing before real relay)
+- 128×64 OLED display (SSD1306 I²C)
+- LEDs:  
+  - Green = breathes when cycle/prime active, solid when in menu  
+  - Red = solid ON when relay is powered (during on_time or prime)
+
+![Project photo - breadboard prototype](images/wokwi-layout.jpg)  
+
+## Features in Detail
+- Single rotary encoder with push button  
+- Short press selects/enters/saves/starts  
+- Long press (>3 s) backs out or stops cycle/prime  
+- OLED shows current menu, times, duty cycle, status  
+- Green LED breathes slowly during active timing (cycle or prime)  
+- Green LED solid when idle in menu/settings  
+- Red LED solid when relay is ON (load powered)  
+- No simulation LED – test with low-voltage load first
+
+![Close-up of Elecrow Pico W5](images/pico-w5.jpg)  
 
 ## Hardware Requirements
 
@@ -23,9 +38,8 @@ Features:
 | Elecrow Pico W5                   | RP2350 microcontroller                              | $7–10        |
 | SSD1306 OLED (128×64)             | I²C interface, 0.96" size                           | $3–6         |
 | EC11 rotary encoder (bare, 5-pin) | 3 pins rotation + 2 pins push                       | $1–2         |
-| Green LED + 220–330 Ω resistor    | Cycle ON indicator                                  | $0.10        |
-| Red LED + 220–330 Ω resistor      | Cycle OFF indicator                                 | $0.10        |
-| Test LED + 220–330 Ω resistor     | Simulation output (TEST_MODE)                       | $0.10        |
+| Green LED + 220–330 Ω resistor    | PWM breathing (active cycle)                        | $0.10        |
+| Red LED + 220–330 Ω resistor      | Solid when relay ON                                 | $0.10        |
 | 5V single-channel relay module    | Opto-isolated, ≥10A @ 120VAC                        | $2–5         |
 | Breadboard + jumper wires         | Prototyping                                         | $5–10        |
 | USB-C cable                       | Programming & power                                 | —            |
@@ -38,7 +52,7 @@ Features:
 - **Thonny IDE**  
   Download: https://thonny.org
 
-- **Libraries** (copy to Pico root – these are not bundled in this repo)
+- **Libraries** (copy to Pico root – do not bundle in repo)
 
   | Library            | Purpose                        | Source Link                                                                 | Author              | License |
   |--------------------|--------------------------------|-----------------------------------------------------------------------------|---------------------|---------|
@@ -47,7 +61,7 @@ Features:
   | `rotary_irq_rp2.py`| Rotary interrupt driver        | https://github.com/miketeachman/micropython-rotary/blob/master/rotary_irq_rp2.py | Mike Teachman    | MIT     |
 
 **Attribution**  
-Thanks to Stefan Lehmann and Mike Teachman for these excellent open-source libraries, licensed under MIT.
+Thanks to Stefan Lehmann (ssd1306) and Mike Teachman (rotary / rotary_irq_rp2) for their excellent MIT-licensed libraries.
 
 ## Wiring Table
 
@@ -55,17 +69,19 @@ Thanks to Stefan Lehmann and Mike Teachman for these excellent open-source libra
 |----------------------------|-----------|--------------|-------------------------------------------------------|
 | OLED SDA                   | GP0       | 1            | To OLED SDA                                           |
 | OLED SCL                   | GP1       | 2            | To OLED SCL                                           |
-| Encoder CLK (A)            | GP2       | 4            | Encoder 3-pin side (left)                             |
-| Encoder DT (B)             | GP3       | 5            | Encoder 3-pin side (right)                            |
+| Encoder CLK (A)            | GP2       | 4            | Encoder 3-pin side (usually left)                     |
+| Encoder DT (B)             | GP3       | 5            | Encoder 3-pin side (usually right)                    |
 | Encoder Common (rotation)  | —         | —            | Middle pin → GND                                      |
 | Encoder Push SW            | GP15      | 20           | One push pin → GP15, other → GND                      |
-| Green LED (ON)             | GP10      | 14           | Anode → 220–330Ω → GP10, cathode → GND                |
-| Red LED (OFF)              | GP12      | 16           | Anode → 220–330Ω → GP12, cathode → GND                |
-| Test LED (simulation)      | GP11      | 15           | Anode → 220–330Ω → GP11, cathode → GND                |
-| Relay IN                   | GP6       | 9            | Relay IN pin (active low)                             |
-| 3.3V                       | 3V3 OUT   | 36           | OLED VCC & encoder logic                              |
-| 5V (VBUS)                  | VBUS      | 40           | Relay VCC if needed                                   |
+| Green LED                  | GP10      | 14           | Anode → GP10 via 220–330 Ω resistor → GND             |
+| Red LED                    | GP12      | 16           | Anode → GP12 via 220–330 Ω resistor → GND             |
+| Relay IN                   | GP6       | 9            | Relay signal (active low)                             |
+| 3.3V                       | 3V3 OUT   | 36           | OLED VCC                                              |
 | GND                        | GND       | 3,8,13,18,38 | All GND connections                                   |
+
+**Encoder wiring** (bare EC11-style):
+- 3-pin side: CLK → GP2, DT → GP3, middle → GND
+- 2-pin side (push): one → GP15, other → GND
 
 ## Step-by-Step Setup Guide
 
@@ -84,11 +100,11 @@ Thanks to Stefan Lehmann and Mike Teachman for these excellent open-source libra
 2. In Thonny: File → Open → select file → Save as → MicroPython device → root
 
 ### 4. Upload Main Code
-1. New file → paste code from this repo `main.py`
+1. New file → paste code from below
 2. Save as `main.py` on MicroPython device (auto-runs on boot)
 3. Click Run
 
-OLED shows "Starting..." → menu appears very quickly
+OLED shows "Starting..." → menu appears
 
 ## Usage Guide
 - Rotate → move > cursor or change values
@@ -97,16 +113,19 @@ OLED shows "Starting..." → menu appears very quickly
 
 Menu: Set On → Set Off → Start → Prime → Exit
 
-Test with TEST_MODE=True first (GP11 LED simulates relay)
+**LED Feedback**
+- Green LED breathes when cycle or prime is active  
+- Green LED solid when in menu/settings (program idle/active)  
+- Red LED solid when relay is ON (load powered)
 
 ## Troubleshooting
-- No display? → Check I²C (GP0/GP1), 3V3 power, address 0x3C
-- Encoder skips? → Slow turns; add 10kΩ pull-ups GP2/GP3 → 3V3
-- Button not working? → Confirm GP15 + GND wiring
-- Relay not clicking? → Check active low (HIGH = off), 5V supply
+- No display? → Check I²C (GP0/GP1), 3V3 power, address 0x3C  
+- Encoder skips? → Turn slowly; add 10kΩ pull-ups GP2/GP3 → 3V3  
+- Button not working? → Confirm GP15 + GND wiring  
+- Relay not clicking? → Check active low (HIGH = off), 5V supply  
 - Code errors? → View Thonny Shell (bottom pane)
 
 ## License
 MIT License – see LICENSE file
 
-Thanks to Stefan Lehmann (ssd1306) and Mike Teachman (rotary) for their MIT-licensed libraries!
+**Thank you** to Stefan Lehmann (ssd1306) and Mike Teachman (rotary) for their MIT-licensed libraries!
