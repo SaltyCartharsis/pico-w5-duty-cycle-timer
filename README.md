@@ -1,81 +1,112 @@
 # Pico W5 Adjustable Duty Cycle Timer
 
-MicroPython project for Elecrow Pico W5 (RP2350) that controls a 120V AC relay with adjustable on/off times, duty cycle display on SSD1306 OLED, rotary encoder control, and a one-shot "Prime" mode.
+A repeating on/off timer for 120V AC loads using the **Elecrow Pico W5** (RP2350) with MicroPython.
 
-## Attribution & Thanks
-This project relies on excellent open-source work:
+Control via single rotary encoder:
+- Rotate → navigate menu / adjust values
+- Short press (< 3s) → select / enter / save / start
+- Long press (> 3s) → back / cancel / stop
 
-### SSD1306 driver by Stefan Lehmann –
- https://github.com/stlehmann/micropython-ssd1306
-### Rotary encoder library by Mike Teachman – 
-https://github.com/miketeachman/micropython-rotary
+Features:
+- Adjustable on/off times (seconds)
+- Duty cycle % display
+- Repeating cycle mode
+- "Prime" mode: one-shot ON for adjustable duration (15 s steps)
+- OLED status display (128×64 SSD1306 I²C)
+- LEDs: Green = ON state, Red = OFF state (during cycle)
+- Test mode: simulation LED on GP11 (safe testing before real relay)
 
-Both are licensed under the MIT License. Thank you to the authors for making these high-quality drivers freely available!
+## Hardware Requirements
 
-## Features
-- Menu navigation via single rotary encoder (short press = select, long press >3s = back)
-- Adjustable on/off times for repeating cycle
-- Prime mode: one-shot ON for 15s–600s
-- Status LEDs: Green = ON, Red = OFF
-- Test mode with simulation LED before connecting real relay
+| Item                              | Notes / Example Model                              | Approx. Price |
+|-----------------------------------|-----------------------------------------------------|---------------|
+| Elecrow Pico W5                   | RP2350 microcontroller                              | $7–10        |
+| SSD1306 OLED (128×64)             | I²C interface, 0.96" size                           | $3–6         |
+| EC11 rotary encoder (bare, 5-pin) | 3 pins rotation + 2 pins push                       | $1–2         |
+| Green LED + 220–330 Ω resistor    | Cycle ON indicator                                  | $0.10        |
+| Red LED + 220–330 Ω resistor      | Cycle OFF indicator                                 | $0.10        |
+| Test LED + 220–330 Ω resistor     | Simulation output (TEST_MODE)                       | $0.10        |
+| 5V single-channel relay module    | Opto-isolated, ≥10A @ 120VAC                        | $2–5         |
+| Breadboard + jumper wires         | Prototyping                                         | $5–10        |
+| USB-C cable                       | Programming & power                                 | —            |
 
-## Hardware
-- Elecrow Pico W5
-- SSD1306 128×64 OLED (I²C)
-- EC11 rotary encoder
-- 3× LEDs + resistors
-- 5V relay module
+## Software Requirements
 
-See `docs/wiring.png` for connection diagram.
+- **MicroPython firmware** for RP2350  
+  Download: https://micropython.org/download/ (choose RP2350 variant)
 
-## Installation
+- **Thonny IDE**  
+  Download: https://thonny.org
 
-See notes on required libraries below
+- **Libraries** (copy to Pico root – do not bundle in repo)
 
-1. Flash MicroPython RP2350 firmware
-2. Copy files to Pico:
-   - `main.py`
-   - `lib/ssd1306.py`, `lib/rotary.py`, `lib/rotary_irq_rp2.py`
-3. Power on → menu appears on OLED
+  | Library            | Purpose                        | Source Link                                                                 | Author              | License |
+  |--------------------|--------------------------------|-----------------------------------------------------------------------------|---------------------|---------|
+  | `ssd1306.py`       | OLED driver                    | https://github.com/stlehmann/micropython-ssd1306/blob/master/ssd1306.py     | Stefan Lehmann      | MIT     |
+  | `rotary.py`        | Rotary encoder core            | https://github.com/miketeachman/micropython-rotary/blob/master/rotary.py    | Mike Teachman       | MIT     |
+  | `rotary_irq_rp2.py`| Rotary interrupt driver        | https://github.com/miketeachman/micropython-rotary/blob/master/rotary_irq_rp2.py | Mike Teachman    | MIT     |
 
-## Usage
-- Rotate: navigate/adjust values
-- Short press: enter/select/start
-- Long press (>3s): back/stop/cancel
+**Attribution**  
+Thanks to Stefan Lehmann and Mike Teachman for these excellent open-source libraries, licensed under MIT.
+
+## Wiring Table
+
+| Component                  | Pico GPIO | Physical Pin | Connection Notes                                      |
+|----------------------------|-----------|--------------|-------------------------------------------------------|
+| OLED SDA                   | GP0       | 1            | To OLED SDA                                           |
+| OLED SCL                   | GP1       | 2            | To OLED SCL                                           |
+| Encoder CLK (A)            | GP2       | 4            | Encoder 3-pin side (left)                             |
+| Encoder DT (B)             | GP3       | 5            | Encoder 3-pin side (right)                            |
+| Encoder Common (rotation)  | —         | —            | Middle pin → GND                                      |
+| Encoder Push SW            | GP15      | 20           | One push pin → GP15, other → GND                      |
+| Green LED (ON)             | GP10      | 14           | Anode → 220–330Ω → GP10, cathode → GND                |
+| Red LED (OFF)              | GP12      | 16           | Anode → 220–330Ω → GP12, cathode → GND                |
+| Test LED (simulation)      | GP11      | 15           | Anode → 220–330Ω → GP11, cathode → GND                |
+| Relay IN                   | GP6       | 9            | Relay IN pin (active low)                             |
+| 3.3V                       | 3V3 OUT   | 36           | OLED VCC & encoder logic                              |
+| 5V (VBUS)                  | VBUS      | 40           | Relay VCC if needed                                   |
+| GND                        | GND       | 3,8,13,18,38 | All GND connections                                   |
+
+## Step-by-Step Setup Guide
+
+### 1. Flash MicroPython
+1. Download RP2350 .uf2 from https://micropython.org/download/
+2. Hold BOOT button on Pico W5 while connecting USB-C → appears as drive
+3. Drag .uf2 file onto drive → board reboots
+
+### 2. Install Thonny & Connect
+1. Download Thonny: https://thonny.org
+2. Open Thonny → Interpreter → MicroPython (Raspberry Pi Pico)
+3. Connect Pico → port appears
+
+### 3. Upload Libraries
+1. Download each file (Raw → Save As) from links above
+2. In Thonny: File → Open → select file → Save as → MicroPython device → root
+
+### 4. Upload Main Code
+1. New file → paste code from below
+2. Save as `main.py` on MicroPython device (auto-runs on boot)
+3. Click Run
+
+OLED shows "Starting..." → menu appears
+
+## Usage Guide
+- Rotate → move > cursor or change values
+- Short press → select / save / start cycle or prime
+- Long press (>3s) → back / stop
+
+Menu: Set On → Set Off → Start → Prime → Exit
+
+Test with TEST_MODE=True first (GP11 LED simulates relay)
+
+## Troubleshooting
+- No display? → Check I²C (GP0/GP1), 3V3 power, address 0x3C
+- Encoder skips? → Slow turns; add 10kΩ pull-ups GP2/GP3 → 3V3
+- Button not working? → Confirm GP15 + GND wiring
+- Relay not clicking? → Check active low (HIGH = off), 5V supply
+- Code errors? → View Thonny Shell (bottom pane)
 
 ## License
-MIT
+MIT License – see LICENSE file
 
-## Required Libraries
-
-This project uses the following third-party MicroPython libraries.  
-**Do not** download/use them from this repository — download them directly from the original sources below and copy them to the root of your Pico filesystem (using Thonny or rshell). This ensures you have the most up to date version of these libraries included in your project, as I may not have remembered to update the copies contained in this repository during my most recent edit.
-
-| Library          | Purpose                          | Source Repository                                      | Author/Maintainer          | License     | File to copy          |
-|------------------|----------------------------------|--------------------------------------------------------|----------------------------|-------------|-----------------------|
-| ssd1306         | SSD1306 OLED driver             | https://github.com/stlehmann/micropython-ssd1306       | Stefan Lehmann             | MIT         | `ssd1306.py`          |
-| rotary          | Core rotary encoder logic       | https://github.com/miketeachman/micropython-rotary     | Mike Teachman              | MIT         | `rotary.py`           |
-| rotary_irq_rp2  | RP2040/RP2350 interrupt-based rotary driver | https://github.com/miketeachman/micropython-rotary (same repo) | Mike Teachman              | MIT         | `rotary_irq_rp2.py`   |
-
-### Installation Instructions (Manual – Recommended)
-
-1. Connect your Pico W5 to Thonny (or use rshell/mpremote).
-2. Download the files from the links above:
-   - Right-click → "Save link as…" on the **Raw** view of each file
-   - Save as exactly `ssd1306.py`, `rotary.py`, `rotary_irq_rp2.py`
-3. In Thonny:
-   - File → Open → your computer → select each file
-   - File → Save as… → **MicroPython device** (root folder of Pico)
-   - Overwrite if prompted
-4. Upload your `main.py` (from this repo)
-5. Reset the Pico or click Run — the project should start.
-
-### Alternative: Install via mip (MicroPython package manager) – Experimental
-
-If your MicroPython firmware has `mip` support enabled (most RP2350 builds in 2025 do), you can install the libraries over USB/WiFi:
-
-```python
-# Run these lines one by one in Thonny REPL
-import mip
-mip.install("github:stlehmann/micropython-ssd1306")
-mip.install("github:miketeachman/micropython-rotary")
+Thanks to Stefan Lehmann (ssd1306) and Mike Teachman (rotary) for their MIT-licensed libraries!
