@@ -38,7 +38,7 @@ Features:
 - **Thonny IDE**  
   Download: https://thonny.org
 
-- **Libraries** (copy to Pico root – do not bundle in repo)
+- **Libraries** (copy to Pico root – these are not bundled in this repo)
 
   | Library            | Purpose                        | Source Link                                                                 | Author              | License |
   |--------------------|--------------------------------|-----------------------------------------------------------------------------|---------------------|---------|
@@ -84,11 +84,11 @@ Thanks to Stefan Lehmann and Mike Teachman for these excellent open-source libra
 2. In Thonny: File → Open → select file → Save as → MicroPython device → root
 
 ### 4. Upload Main Code
-1. New file → paste code from below
+1. New file → paste code from this repo `main.py`
 2. Save as `main.py` on MicroPython device (auto-runs on boot)
 3. Click Run
 
-OLED shows "Starting..." → menu appears
+OLED shows "Starting..." → menu appears very quickly
 
 ## Usage Guide
 - Rotate → move > cursor or change values
