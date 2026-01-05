@@ -49,7 +49,7 @@ output_off = 1
 # STATE
 # ────────────────────────────────────────────────
 on_time     = 10
-off_time    = 10
+off_time    = 30
 prime_time  = 30
 
 state       = 'main'
