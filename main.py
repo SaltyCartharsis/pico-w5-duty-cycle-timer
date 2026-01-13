@@ -125,7 +125,7 @@ while True:
         elif state == 'set_prime':
             prime_time = max(PRIME_MIN, min(PRIME_MAX, prime_time + delta * PRIME_STEP))
         last_enc_val = current_val
-        time.sleep_ms(60)
+        time.sleep_ms(50)
 
     # Button handling
     if enc_sw.value() == 0:
